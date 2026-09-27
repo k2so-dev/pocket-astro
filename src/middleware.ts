@@ -2,9 +2,14 @@ import { PB_URL } from "astro:env/server"
 import { defineMiddleware } from "astro:middleware"
 import { createPb } from "@/lib/pb"
 
-export const onRequest = defineMiddleware(async ({ locals, request, url }, next) => {
-  const cookie = request.headers.get("cookie") ?? ""
+export const onRequest = defineMiddleware(async ({ locals, request, url, isPrerendered }, next) => {
   const pb = createPb(PB_URL)
+  locals.pb = pb
+  locals.user = null
+
+  if (isPrerendered) return next()
+
+  const cookie = request.headers.get("cookie") ?? ""
   pb.authStore.loadFromCookie(cookie)
 
   if (pb.authStore.isValid && pb.authStore.record) {
@@ -15,7 +20,6 @@ export const onRequest = defineMiddleware(async ({ locals, request, url }, next)
     }
   }
 
-  locals.pb = pb
   locals.user = pb.authStore.record
 
   const response = await next()

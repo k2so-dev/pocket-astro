@@ -10,3 +10,5 @@ pb/data/*
 .DS_Store
 .idea/
 .vscode/
+pb/public/*
+!pb/public/.gitkeep

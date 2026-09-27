@@ -1,20 +1,26 @@
 # pocket-astro
 
-Astro + PocketBase + Vue 3 starter. Server-rendered pages for SEO, Vue islands with shadcn-vue, and an SPA cabinet on the same components. One command to deploy on a 1 GB VPS with automatic HTTPS.
+Astro + PocketBase + Vue 3 starter. Static pages rebuilt automatically when content changes, Vue islands with shadcn-vue, and an SPA cabinet on the same components. Optional SSR. One command to deploy on a 1 GB VPS with automatic HTTPS.
 
 ## Stack
 
-- [Astro](https://astro.build) in server mode on the [Bun](https://bun.sh) runtime
+- [Astro](https://astro.build) static or server mode on the [Bun](https://bun.sh) runtime
 - [PocketBase](https://pocketbase.io) with the typed JS SDK and realtime
 - [Vue 3](https://vuejs.org) islands and SPA with [vue-router](https://router.vuejs.org)
 - [shadcn-vue](https://shadcn-vue.com) full component catalog, [Tailwind CSS 4](https://tailwindcss.com)
 - Docker Compose, [Caddy](https://caddyserver.com) with Let's Encrypt, Make
 
-## Why server mode
+## How it works
 
-Pages read PocketBase on every request, so content changes are live without rebuilds or deploy hooks. Astro and PocketBase talk over the Docker network in under 2 ms. Idle memory is about 80 MB for Astro and 10 MB for PocketBase.
+Two modes, set with `MODE` in `.env`.
 
-Pages that do not depend on data can opt into static generation with `export const prerender = true`.
+**static** (default). Astro prerenders the site into `pb/public`, PocketBase serves it together with the API. A PocketBase hook notifies the `builder` service on any record change in non-auth collections. The builder debounces changes (`BUILD_DELAY`, 3 s), builds into a new release folder and atomically switches the `pb/public/current` symlink. No downtime, no deploy hooks, no CI. Idle memory is about 12 MB for the builder and 13 MB for PocketBase. A small site builds in 2-4 s.
+
+**ssr**. Astro runs as a Node-compatible server on Bun and reads PocketBase on every request. Use it when pages must be personalized or data changes too often for rebuilds. Idle memory is about 65 MB. Pages can still opt into static generation with `export const prerender = true`.
+
+Both modes use the `oven/bun:1` image with the repository mounted. There is no Dockerfile.
+
+The `/app` SPA is served by a PocketBase route in static mode and by Astro in ssr mode.
 
 ## Requirements
 
@@ -33,9 +39,11 @@ make dev
 make admin
 ```
 
-- Site: http://localhost:4321
-- App: http://localhost:4321/app
+- Dev site: http://localhost:4321
+- Dev app: http://localhost:4321/app
 - PocketBase admin: http://localhost:8090/_/
+
+`make up` runs the production setup locally: in static mode the site is at http://localhost:8090.
 
 ## Deploy
 
@@ -51,20 +59,39 @@ make deploy
 make admin
 ```
 
-Set `DOMAIN`, `ACME_EMAIL` and `SITE_URL=https://your.domain` in `.env`. `make swap` adds a 2 GB swapfile, recommended on 1 GB machines for the build step. Run `make deploy` again to update: it pulls, rebuilds and restarts.
+Set `DOMAIN`, `ACME_EMAIL` and `SITE_URL=https://your.domain` in `.env`. `make swap` adds a 2 GB swapfile, recommended on 1 GB machines for the build step. Run `make deploy` again to update: it pulls and restarts, which triggers a fresh build.
 
-Caddy routes `/api/*` and `/_/*` to PocketBase and everything else to Astro.
+Caddy routes `/api/*` and `/_/*` to PocketBase and everything else to PocketBase (static) or Astro (ssr).
+
+Behind your own reverse proxy use `make up` and point it to `127.0.0.1:8090` (static) or split `/api/`, `/_/` to `8090` and the rest to `4321` (ssr). Disable proxy buffering for `/api/` so realtime works.
 
 ## PocketBase API
 
-Server side, every request gets its own authenticated client:
+Server side, pages get a client in `Astro.locals.pb`. In static mode it runs at build time, in ssr mode per request with the user session in `Astro.locals.user`:
 
 ```astro
 ---
-const posts = await Astro.locals.pb.collection("posts").getList(1, 20)
-const user = Astro.locals.user
+const posts = await Astro.locals.pb.collection("posts").getFullList()
 ---
 ```
+
+For static pages with dynamic routes use `getStaticPaths`:
+
+```astro
+---
+import { PB_URL } from "astro:env/server"
+import { createPb } from "@/lib/pb"
+
+export async function getStaticPaths() {
+  const posts = await createPb(PB_URL).collection("posts").getFullList()
+  return posts.map((post) => ({ params: { slug: post.slug }, props: { post } }))
+}
+
+const { post } = Astro.props
+---
+```
+
+Use PocketBase thumbs (`/api/files/...?thumb=800x0`) for images instead of `astro:assets` to keep builds light.
 
 Client side, islands and the SPA share one client:
 
@@ -77,7 +104,7 @@ const { user, login, logout } = useAuth()
 useRealtime("posts", "*", (event) => console.log(event.action, event.record))
 ```
 
-Auth is stored in the `pb_auth` cookie, so SSR pages and the browser see the same session.
+Auth is stored in the `pb_auth` cookie, so in ssr mode server pages and the browser see the same session.
 
 Generate types after changing collections:
 
@@ -110,8 +137,9 @@ Add or update components with `make shadcn add <name>`.
 | --- | --- |
 | `make init` | Create `.env` with encryption key |
 | `make dev` | PocketBase and Astro dev server |
-| `make up` | Build and run PocketBase and Astro on localhost |
-| `make deploy` | Pull, build and run with Caddy on `DOMAIN` |
+| `make up` | Run PocketBase with builder (static) or Astro (ssr) |
+| `make build` | Build the static site once |
+| `make deploy` | Pull and run with Caddy on `DOMAIN` |
 | `make down` | Stop everything |
 | `make logs [svc]` | Follow logs |
 | `make admin` | Create or update a superuser |
@@ -128,11 +156,13 @@ Add or update components with `make shadcn add <name>`.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PROJECT_NAME` | directory name | Compose project name |
+| `MODE` | `static` | `static` or `ssr` |
 | `ENCRYPTION_KEY` | generated | PocketBase settings encryption |
 | `PB_VERSION` | `0.40.4` | PocketBase image tag |
 | `PB_BIND`, `PB_PORT` | `127.0.0.1`, `8090` | PocketBase host binding |
 | `ASTRO_BIND`, `ASTRO_PORT` | `127.0.0.1`, `4321` | Astro host binding |
-| `SITE_URL` | `http://localhost:4321` | Canonical URL and sitemap |
+| `SITE_URL` | `http://localhost:8090` | Canonical URL and sitemap |
+| `BUILD_DELAY` | `3000` | Debounce before rebuild, ms |
 | `DOMAIN` | | Domain for Caddy |
 | `ACME_EMAIL` | | Let's Encrypt email |
 | `TZ` | `UTC` | PocketBase timezone |
@@ -140,12 +170,13 @@ Add or update components with `make shadcn add <name>`.
 ## Structure
 
 ```
-pb/                 data, hooks, migrations
+pb/                 data, hooks, migrations, public (builds)
+scripts/builder.ts  debounced static builder
 src/components/ui/  shadcn-vue components
 src/composables/    useAuth, useRealtime
 src/layouts/        Astro layouts
 src/lib/            pb clients, generated types, utils
 src/pages/          Astro routes, /app is the SPA entry
 src/spa/            Vue SPA router and pages
-src/middleware.ts   per-request PocketBase client
+src/middleware.ts   PocketBase client in locals, session in ssr mode
 ```

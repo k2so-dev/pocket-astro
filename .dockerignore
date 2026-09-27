@@ -1,6 +1,0 @@
-.git
-.astro
-.env
-dist
-node_modules
-pb

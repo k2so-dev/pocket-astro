@@ -5,6 +5,13 @@ PROJECT      = $(if $(_PROJECT_ENV),$(_PROJECT_ENV),$(shell basename $$PWD))
 PB_PORT      = $(shell grep -s '^PB_PORT' .env | cut -d= -f2 | xargs | grep . || echo 8090)
 ASTRO_PORT   = $(shell grep -s '^ASTRO_PORT' .env | cut -d= -f2 | xargs | grep . || echo 4321)
 DOMAIN       = $(shell grep -s '^DOMAIN' .env | cut -d= -f2 | xargs)
+MODE         = $(shell grep -s '^MODE' .env | cut -d= -f2 | xargs | grep . || echo static)
+
+export COMPOSE_PROFILES = $(MODE)
+ifeq ($(MODE),ssr)
+export SITE_UPSTREAM = astro:4321
+export BUILDER_URL =
+endif
 
 COMPOSE      = docker compose -p $(PROJECT)
 COMPOSE_PROD = $(COMPOSE) -f compose.yml -f compose.caddy.yml
@@ -38,10 +45,10 @@ dev:
 	@$(COMPOSE) --profile dev run --rm --service-ports dev
 
 up:
-	@$(COMPOSE) up -d --build $(ARGS)
+	@$(COMPOSE) up -d --remove-orphans $(ARGS)
 
 down:
-	@$(COMPOSE_PROD) --profile dev down $(ARGS)
+	@$(COMPOSE_PROD) --profile static --profile ssr --profile dev down $(ARGS)
 
 restart:
 	@$(COMPOSE) restart $(ARGS)
@@ -56,13 +63,12 @@ sh:
 	@$(COMPOSE) exec $(or $(ARGS),pocketbase) sh
 
 build:
-	@$(COMPOSE) build astro
+	@$(COMPOSE) --profile static run --rm --no-deps -e PB_URL=http://pocketbase:8090 builder sh -c "bun install --frozen-lockfile && bun scripts/builder.ts --once"
 
 deploy:
 	@if [ -z "$(DOMAIN)" ]; then printf "$(C_RED)Set DOMAIN and ACME_EMAIL in .env$(C_RST)\n"; exit 1; fi
 	@git pull --ff-only
-	@$(COMPOSE_PROD) up -d --build --remove-orphans
-	@docker image prune -f >/dev/null
+	@$(COMPOSE_PROD) up -d --force-recreate --remove-orphans
 	@printf "$(C_GRN)Deployed → https://$(DOMAIN)$(C_RST)\n"
 
 admin:
@@ -107,13 +113,13 @@ upgrade:
 	@$(COMPOSE_PROD) --profile dev pull --ignore-buildable
 
 status:
-	@for s in pocketbase astro dev caddy; do \
+	@for s in pocketbase builder astro dev caddy; do \
 		ID=$$(docker ps -q --filter "label=com.docker.compose.project=$(PROJECT)" --filter "label=com.docker.compose.service=$$s"); \
 		if [ -n "$$ID" ]; then printf "  $(C_GRN)●$(C_RST) %-11s running\n" $$s; else printf "  $(C_DIM)○ %-11s stopped$(C_RST)\n" $$s; fi; \
 	done
 
 help:
-	@printf "$(C_GRN)pocket-astro$(C_RST) $(C_DIM)[$(PROJECT)]$(C_RST)\n\n"
+	@printf "$(C_GRN)pocket-astro$(C_RST) $(C_DIM)[$(PROJECT), $(MODE)]$(C_RST)\n\n"
 	@$(MAKE) --no-print-directory status
 	@printf "\n$(C_GRN)SETUP$(C_RST)\n"
 	@printf "  $(C_CYN)init$(C_RST)             Create .env with encryption key\n"
@@ -129,14 +135,14 @@ help:
 	@printf "  $(C_CYN)check$(C_RST)            Type-check astro and vue\n"
 	@printf "  $(C_CYN)types$(C_RST)            Generate src/lib/pb-types.ts from pb/data\n"
 	@printf "\n$(C_GRN)RUN$(C_RST)\n"
-	@printf "  $(C_CYN)up$(C_RST)               Build and start pocketbase + astro on localhost\n"
-	@printf "  $(C_CYN)deploy$(C_RST)           Pull, build, start with caddy on DOMAIN (https)\n"
+	@printf "  $(C_CYN)up$(C_RST)               Start pocketbase + builder (static) or astro (ssr)\n"
+	@printf "  $(C_CYN)deploy$(C_RST)           Pull and restart with caddy on DOMAIN (https)\n"
 	@printf "  $(C_CYN)down$(C_RST)             Stop everything\n"
 	@printf "  $(C_CYN)restart$(C_RST) [svc]    Restart services\n"
 	@printf "  $(C_CYN)logs$(C_RST) [svc]       Follow logs\n"
 	@printf "  $(C_CYN)ps$(C_RST)               List containers\n"
 	@printf "  $(C_CYN)sh$(C_RST) [svc]         Shell into service (default pocketbase)\n"
-	@printf "  $(C_CYN)build$(C_RST)            Build astro image\n"
+	@printf "  $(C_CYN)build$(C_RST)            Build static site into pb/public once\n"
 	@printf "  $(C_CYN)upgrade$(C_RST)          Pull latest images\n"
 	@printf "\n$(C_GRN)POCKETBASE$(C_RST)\n"
 	@printf "  $(C_CYN)migrate$(C_RST) [cmd]    Run pocketbase migrate\n"

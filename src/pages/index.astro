@@ -2,8 +2,6 @@
 import ThemeToggle from "@/components/ThemeToggle.vue"
 import { buttonVariants } from "@/components/ui/button"
 import Layout from "@/layouts/Layout.astro"
-
-const { user } = Astro.locals
 ---
 
 <Layout>
@@ -17,7 +15,7 @@ const { user } = Astro.locals
       Server-rendered pages for SEO, Vue islands with shadcn-vue, and an SPA cabinet on the same components.
     </p>
     <div class="mt-10 flex justify-center gap-3">
-      <a href="/app" class={buttonVariants()}>{user ? "Open app" : "Sign in"}</a>
+      <a href="/app" class={buttonVariants()}>Open app</a>
       <a href="https://github.com/k2so-dev/pocket-astro" class={buttonVariants({ variant: "outline" })}>GitHub</a>
     </div>
   </main>

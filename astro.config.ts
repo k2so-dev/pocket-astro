@@ -4,12 +4,13 @@ import vue from "@astrojs/vue"
 import tailwindcss from "@tailwindcss/vite"
 import { defineConfig, envField } from "astro/config"
 
+const ssr = process.env.MODE === "ssr"
 const pbDev = process.env.PB_URL ?? "http://127.0.0.1:8090"
 
 export default defineConfig({
   site: process.env.SITE_URL ?? "http://localhost:4321",
-  output: "server",
-  adapter: node({ mode: "standalone" }),
+  output: ssr ? "server" : "static",
+  adapter: ssr ? node({ mode: "standalone" }) : undefined,
   integrations: [vue(), sitemap()],
   server: { host: true, port: 4321 },
   env: {

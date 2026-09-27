@@ -1,6 +1,10 @@
 ---
 import Layout from "@/layouts/Layout.astro"
 import SpaRoot from "@/spa/SpaRoot.vue"
+
+export function getStaticPaths() {
+  return [{ params: { path: undefined } }]
+}
 ---
 
 <Layout title="App">

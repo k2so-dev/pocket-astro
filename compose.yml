@@ -1,5 +1,17 @@
 name: ${PROJECT_NAME:-pocket-astro}
 
+x-bun: &bun
+  image: oven/bun:1
+  working_dir: /app
+  user: "1000:1000"
+  init: true
+  restart: unless-stopped
+  volumes:
+    - .:/app
+  depends_on:
+    pocketbase:
+      condition: service_healthy
+
 services:
   pocketbase:
     image: ghcr.io/muchobien/pocketbase:${PB_VERSION:-0.40.4}
@@ -9,47 +21,49 @@ services:
       - "${PB_BIND:-127.0.0.1}:${PB_PORT:-8090}:8090"
     environment:
       ENCRYPTION: ${ENCRYPTION_KEY}
+      BUILDER_URL: ${BUILDER_URL-http://builder:4322}
       TZ: ${TZ:-UTC}
     volumes:
       - ./pb/data:/pb_data
       - ./pb/hooks:/pb_hooks
       - ./pb/migrations:/pb_migrations
-    command: ["--encryptionEnv", "ENCRYPTION"]
+      - ./pb/public:/pb_public
+    command: ["--encryptionEnv", "ENCRYPTION", "--publicDir", "/pb_public/current", "--indexFallback=false"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
       interval: 10s
       timeout: 3s
       retries: 5
 
+  builder:
+    <<: *bun
+    profiles: ["static"]
+    environment:
+      PB_URL: http://pocketbase:8090
+      SITE_URL: ${SITE_URL:-http://localhost:8090}
+      BUILD_DELAY: ${BUILD_DELAY:-3000}
+    command: sh -c "bun install --frozen-lockfile && exec bun scripts/builder.ts"
+
   astro:
-    build:
-      context: .
-      args:
-        SITE_URL: ${SITE_URL:-http://localhost:4321}
-    restart: unless-stopped
-    depends_on:
-      pocketbase:
-        condition: service_healthy
+    <<: *bun
+    profiles: ["ssr"]
     ports:
       - "${ASTRO_BIND:-127.0.0.1}:${ASTRO_PORT:-4321}:4321"
     environment:
+      MODE: ssr
       PB_URL: http://pocketbase:8090
-    mem_limit: 384m
+      SITE_URL: ${SITE_URL:-http://localhost:4321}
+      HOST: 0.0.0.0
+      PORT: 4321
+    command: sh -c "bun install --frozen-lockfile && bun --bun astro build && exec bun ./dist/server/entry.mjs"
 
   dev:
-    image: oven/bun:1
+    <<: *bun
     profiles: ["dev"]
-    working_dir: /app
-    user: "1000:1000"
-    init: true
-    depends_on:
-      pocketbase:
-        condition: service_healthy
+    restart: "no"
     ports:
       - "${ASTRO_BIND:-127.0.0.1}:${ASTRO_PORT:-4321}:4321"
     environment:
       PB_URL: http://pocketbase:8090
       SITE_URL: ${SITE_URL:-http://localhost:4321}
-    volumes:
-      - .:/app
     command: sh -c "bun install && bun --bun astro dev --host 0.0.0.0"

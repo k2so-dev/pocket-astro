@@ -4,7 +4,6 @@ services:
     restart: unless-stopped
     depends_on:
       - pocketbase
-      - astro
     ports:
       - "80:80"
       - "443:443"
@@ -12,6 +11,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
+      SITE_UPSTREAM: ${SITE_UPSTREAM:-pocketbase:8090}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

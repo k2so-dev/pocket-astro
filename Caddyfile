@@ -12,5 +12,5 @@ www.{$DOMAIN} {
 	@pb path /api/* /_/*
 	reverse_proxy @pb pocketbase:8090
 
-	reverse_proxy astro:4321
+	reverse_proxy {$SITE_UPSTREAM}
 }
