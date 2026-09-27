@@ -41,7 +41,6 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@biomejs/biome": "^2.5.14",
-    "pocketbase-typegen": "^1.5.0",
     "typescript": "^6.0.3",
     "vue-tsc": "^3.3.11"
   }

@@ -6,8 +6,6 @@ dist/
 !.env.example
 pb/data/*
 !pb/data/.gitkeep
-pb/public/*
-!pb/public/.gitkeep
 *.log
 .DS_Store
 .idea/

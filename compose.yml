@@ -1,0 +1,55 @@
+name: ${PROJECT_NAME:-pocket-astro}
+
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:${PB_VERSION:-0.40.4}
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - "${PB_BIND:-127.0.0.1}:${PB_PORT:-8090}:8090"
+    environment:
+      ENCRYPTION: ${ENCRYPTION_KEY}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ./pb/data:/pb_data
+      - ./pb/hooks:/pb_hooks
+      - ./pb/migrations:/pb_migrations
+    command: ["--encryptionEnv", "ENCRYPTION"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  astro:
+    build:
+      context: .
+      args:
+        SITE_URL: ${SITE_URL:-http://localhost:4321}
+    restart: unless-stopped
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    ports:
+      - "${ASTRO_BIND:-127.0.0.1}:${ASTRO_PORT:-4321}:4321"
+    environment:
+      PB_URL: http://pocketbase:8090
+    mem_limit: 384m
+
+  dev:
+    image: oven/bun:1
+    profiles: ["dev"]
+    working_dir: /app
+    user: "1000:1000"
+    init: true
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    ports:
+      - "${ASTRO_BIND:-127.0.0.1}:${ASTRO_PORT:-4321}:4321"
+    environment:
+      PB_URL: http://pocketbase:8090
+      SITE_URL: ${SITE_URL:-http://localhost:4321}
+    volumes:
+      - .:/app
+    command: sh -c "bun install && bun --bun astro dev --host 0.0.0.0"
