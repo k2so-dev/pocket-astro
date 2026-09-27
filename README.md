@@ -134,6 +134,37 @@ Generate types after changing collections:
 make types
 ```
 
+## SEO
+
+Site-wide defaults live in `src/site.ts`: name, description, language, locale, default OG image, Twitter handle, logo, `sameAs` links. `SITE_URL` sets the origin for canonical and absolute URLs.
+
+Every page gets title, description, canonical, robots, Open Graph and Twitter tags through `Layout`:
+
+```astro
+<Layout title="Pricing" description="Plans and prices" image="/og-pricing.png" />
+<Layout title="Draft" noindex />
+```
+
+JSON-LD with typed helpers from `@/lib/schema` (types by [schema-dts](https://github.com/google/schema-dts)):
+
+```astro
+---
+import { articleSchema, breadcrumbSchema } from "@/lib/schema"
+
+const schema = [
+  articleSchema(Astro.url, { title: post.title, published: post.created, image: fileUrl(post, post.cover, "1200x630") }),
+  breadcrumbSchema(Astro.site!, [{ name: "Home", path: "/" }, { name: post.title, path: Astro.url.pathname }]),
+]
+---
+<Layout title={post.title} type="article" schema={schema} />
+```
+
+Generated automatically:
+
+- `sitemap-index.xml` by `@astrojs/sitemap`, `/app` excluded
+- `robots.txt` from `src/pages/robots.txt.ts`, points to the sitemap, disallows `/app/` and `/_/`
+- `/app` and 404 pages are `noindex`
+
 ## Components
 
 All shadcn-vue components are in `src/components/ui`. Use them in Vue files and islands:
@@ -195,7 +226,8 @@ Add or update components with `make shadcn add <name>`.
 pb/                 data, hooks, migrations, public (builds)
 scripts/builder.ts  debounced static builder
 src/components/ui/  shadcn-vue components
-src/components/     PbImage, ThemeToggle
+src/components/     PbImage, ThemeToggle, seo/
+src/site.ts         site name, description, SEO defaults
 src/composables/    useAuth, useRealtime
 src/layouts/        Astro layouts
 src/lib/            pb clients, generated types, utils

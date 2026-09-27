@@ -1,24 +1,18 @@
 ---
 import "@/styles/global.css"
+import Seo, { type Props as SeoProps } from "@/components/seo/Seo.astro"
+import { site } from "@/site"
 
-interface Props {
-  title?: string
-  description?: string
-}
-
-const { title = "pocket-astro", description = "Astro + PocketBase + Vue starter" } = Astro.props
-const canonical = new URL(Astro.url.pathname, Astro.site)
+type Props = SeoProps
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={site.lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}</title>
-    <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <Seo {...Astro.props} />
     <script is:inline>
       const theme = localStorage.getItem("theme") ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
       document.documentElement.classList.toggle("dark", theme === "dark")

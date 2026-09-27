@@ -11,7 +11,7 @@ export default defineConfig({
   site: process.env.SITE_URL ?? "http://localhost:4321",
   output: ssr ? "server" : "static",
   adapter: ssr ? node({ mode: "standalone" }) : undefined,
-  integrations: [vue(), sitemap()],
+  integrations: [vue(), sitemap({ filter: (page) => !new URL(page).pathname.startsWith("/app") })],
   server: { host: true, port: 4321 },
   env: {
     schema: {

@@ -2,9 +2,13 @@
 import ThemeToggle from "@/components/ThemeToggle.vue"
 import { buttonVariants } from "@/components/ui/button"
 import Layout from "@/layouts/Layout.astro"
+import { organizationSchema, websiteSchema } from "@/lib/schema"
+
+const home = new URL("/", Astro.site)
+const schema = [websiteSchema(home), organizationSchema(home)]
 ---
 
-<Layout>
+<Layout schema={schema}>
   <header class="container mx-auto flex items-center justify-between px-6 py-4">
     <a href="/" class="font-semibold">pocket-astro</a>
     <ThemeToggle client:load />
