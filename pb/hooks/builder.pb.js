@@ -18,3 +18,19 @@ onRecordAfterUpdateSuccess(rebuild)
 onRecordAfterDeleteSuccess(rebuild)
 
 routerAdd("GET", "/app/{path...}", $apis.static("/pb_public/current/app", true))
+
+routerUse((e) => {
+  try {
+    return e.next()
+  } catch (err) {
+    const path = e.request.url.path
+    if (e.request.method !== "GET" || path.startsWith("/api/") || path.startsWith("/_/")) throw err
+    let html
+    try {
+      html = toString($os.readFile("/pb_public/current/404.html"))
+    } catch {
+      throw err
+    }
+    return e.html(404, html)
+  }
+})

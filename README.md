@@ -20,7 +20,7 @@ Two modes, set with `MODE` in `.env`.
 
 Both modes use the `oven/bun:1` image with the repository mounted. There is no Dockerfile.
 
-The `/app` SPA is served by a PocketBase route in static mode and by Astro in ssr mode.
+The `/app` SPA is served by a PocketBase route in static mode and by Astro in ssr mode. Unknown pages get `src/pages/404.astro` with status 404 in both modes, API errors stay JSON.
 
 ## Requirements
 

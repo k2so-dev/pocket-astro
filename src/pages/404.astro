@@ -1,0 +1,13 @@
+---
+import { buttonVariants } from "@/components/ui/button"
+import Layout from "@/layouts/Layout.astro"
+---
+
+<Layout title="Page not found">
+  <main class="container mx-auto flex min-h-screen flex-col items-center justify-center px-6 text-center">
+    <p class="text-sm font-medium text-muted-foreground">404</p>
+    <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-5xl">Page not found</h1>
+    <p class="mt-4 text-muted-foreground">The page you are looking for does not exist or has been moved.</p>
+    <a href="/" class={buttonVariants({ class: "mt-8" })}>Go home</a>
+  </main>
+</Layout>
