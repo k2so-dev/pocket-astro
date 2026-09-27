@@ -1,11 +1,24 @@
 ---
+import ThemeToggle from "@/components/ThemeToggle.vue"
+import { buttonVariants } from "@/components/ui/button"
 import Layout from "@/layouts/Layout.astro"
-import { Button } from "@/components/ui/button"
+
+const { user } = Astro.locals
 ---
 
 <Layout>
-  <main class="container mx-auto p-8">
-    <h1 class="text-3xl font-semibold">pocket-astro</h1>
-    <Button class="mt-4">Button</Button>
+  <header class="container mx-auto flex items-center justify-between px-6 py-4">
+    <a href="/" class="font-semibold">pocket-astro</a>
+    <ThemeToggle client:load />
+  </header>
+  <main class="container mx-auto px-6 py-24 text-center">
+    <h1 class="text-4xl font-semibold tracking-tight sm:text-6xl">Astro + PocketBase + Vue</h1>
+    <p class="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
+      Server-rendered pages for SEO, Vue islands with shadcn-vue, and an SPA cabinet on the same components.
+    </p>
+    <div class="mt-10 flex justify-center gap-3">
+      <a href="/app" class={buttonVariants()}>{user ? "Open app" : "Sign in"}</a>
+      <a href="https://github.com/k2so-dev/pocket-astro" class={buttonVariants({ variant: "outline" })}>GitHub</a>
+    </div>
   </main>
 </Layout>

@@ -14,7 +14,7 @@ export default defineConfig({
   server: { host: true, port: 4321 },
   env: {
     schema: {
-      PB_URL: envField.string({ context: "server", access: "public", default: "http://127.0.0.1:8090" }),
+      PB_URL: envField.string({ context: "server", access: "secret", default: "http://127.0.0.1:8090" }),
       PUBLIC_PB_URL: envField.string({ context: "client", access: "public", default: "/" }),
     },
   },
