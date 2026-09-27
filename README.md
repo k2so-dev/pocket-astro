@@ -91,7 +91,29 @@ const { post } = Astro.props
 ---
 ```
 
-Use PocketBase thumbs (`/api/files/...?thumb=800x0`) for images instead of `astro:assets` to keep builds light.
+## Images
+
+PocketBase resizes images on the fly and caches thumbs, so builds stay light. Allow sizes in the file field **Thumbs** option, for example `320x0, 640x0, 960x0, 1280x0, 1920x0`. Sizes not listed return the original.
+
+`PbImage` renders a responsive `<img>` with `srcset` from those widths. It works in `.astro` without hydration and inside Vue:
+
+```astro
+---
+import PbImage from "@/components/PbImage.vue"
+---
+<PbImage record={post} file={post.cover} alt={post.title} sizes="(min-width: 768px) 50vw, 100vw" />
+```
+
+Props: `widths` (default `[320, 640, 960, 1280, 1920]`), `sizes` (default `100vw`), `loading` (default `lazy`), `width`, `height`.
+
+For custom markup use the helpers from `@/lib/files`:
+
+```ts
+fileUrl(record, filename, "400x400")
+fileSrcset(record, filename, [480, 960])
+```
+
+URLs are built from `PUBLIC_PB_URL`, never from the internal `PB_URL`, so they are valid in static builds, SSR and the browser.
 
 Client side, islands and the SPA share one client:
 
@@ -173,6 +195,7 @@ Add or update components with `make shadcn add <name>`.
 pb/                 data, hooks, migrations, public (builds)
 scripts/builder.ts  debounced static builder
 src/components/ui/  shadcn-vue components
+src/components/     PbImage, ThemeToggle
 src/composables/    useAuth, useRealtime
 src/layouts/        Astro layouts
 src/lib/            pb clients, generated types, utils
